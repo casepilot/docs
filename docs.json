@@ -17,7 +17,17 @@
             "group": "Getting started",
             "pages": [
               "index",
-              "quickstart"
+              "how_it_works",
+              "quickstart",
+              "file_formats",
+              "languages"
+            ]
+          },
+          {
+            "group": "Document processing",
+            "pages": [
+              "essentials/settings",
+              "essentials/navigation"
             ]
           },
           {

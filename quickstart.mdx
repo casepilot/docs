@@ -155,10 +155,15 @@ Because jobs run through a multi-step pipeline, they may take several minutes to
 
 ### Step 5: Extract key-value fields (optional)
 
+Use our SDK to extract specific key-value pairs from the parsed document response. 
+This feature is free to use, but requires your own `OPENAI_API_KEY`.
+
 <CodeGroup>
     ```bash Python
+  import os
   from pydantic import BaseModel, Field
-  from typing import List, Optional
+
+  OPENAI_KEY = os.getenv("OPENAI_API_KEY")
 
   class BankStatement(BaseModel):
       account_holder: str = Field(..., description="First and last name")
@@ -169,14 +174,18 @@ Because jobs run through a multi-step pipeline, they may take several minutes to
   for doc in documents["result"]:
       if doc.get("classification") == "bank_statement":
           extracted = client.content.extract(
+              model="gpt-5-mini",
+              openai_api_key=OPENAI_KEY,
               parsed_document=doc,   
-              extraction_schema=BankStatement
+              extraction_schema=BankStatement,
           )
           print(extracted)
   ```
 
   ```bash Node
   const { z } = require("zod");
+  
+  const OPENAI_KEY = process.env.OPENAI_API_KEY;
 
   const BankStatement = z.object({
     account_holder: z.string(),
@@ -188,6 +197,8 @@ Because jobs run through a multi-step pipeline, they may take several minutes to
   for (const doc of documents.result) {
     if (doc.classification === "bank_statement") {
       const extracted = await client.content.extract({
+        model: "gpt-5-mini",
+        openaiApiKey: OPENAI_KEY,
         parsedDocument: doc,
         extractionSchema: BankStatement,
       });
@@ -199,7 +210,6 @@ Because jobs run through a multi-step pipeline, they may take several minutes to
 
 ```json response
 {
-    "job_id": "b7e3f8a2-4c1d-4e2a-9f3b-2a1c5e6d8f9a",
     "status": "succeeded",
     "extracted": {
         "account_holder": "John Smith",
@@ -207,7 +217,11 @@ Because jobs run through a multi-step pipeline, they may take several minutes to
         "statement_period_start": "2024-10-01",
         "statement_period_end": "2024-10-31",
     },
-    "usage": {"credits": 2, "pages": 4
+    "model": "gpt-5-mini",
+    "usage": {
+        "input_tokens": 1247,
+        "output_tokens": 127,
+    }
 }
 ```
 

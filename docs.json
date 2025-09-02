@@ -1,11 +1,11 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "Ingestor Docs",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#FA9819",
+    "light": "#FA9819",
+    "dark": "#CD4900"
   },
   "favicon": "/favicon.svg",
   "navigation": {

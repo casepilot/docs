@@ -1,58 +1,216 @@
 ---
-title: "Quickstart"
-description: "Get started with Ingestor."
+title: 'Quickstart'
+description: 'Get started with Ingestor'
 ---
 
-1. Install client SDK
+## Get started in five steps
+
+Convert any document into high quality, LLM ready data.
 
 
-## Get started in three steps
+### Step 1: Install the Ingestor SDK 
 
-Get your documentation site running locally and make your first customization.
+<CodeGroup>
+    ```bash Python
+    pip install ingestorai
+    ```
 
-### Step 1: Set up your local environment
+    ```bash Node
+    npm install ingestorai
+    # or: pnpm add ingestorai
+    ```
+  </CodeGroup>
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
 
-### Step 2: Deploy your changes
+### Step 2: Initialize client
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+Navigate to your dashboard to obtain a copy of your API key
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+<CodeGroup>
+  ```bash Python
+  from ingestor import Ingestor
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+  client = Ingestor(api_key="INGESTOR_API_KEY")
+  ```
 
-### Step 3: Go live
+  ```bash Node
+  import { Ingestor } from "ingestorai";
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+  const client = new Ingestor({ apiKey: "INGESTOR_API_KEY" });
+  ```
+</CodeGroup>
+
+
+### Step 3: Call the document parsing API
+
+<CodeGroup>
+  ```bash Python
+  # input formats: email, pdf, docx, doc, xlsx, xls, csv, xml, jpg, jpeg, png, gif, bmp, tiff, pptx, ppt
+  # input can be a local path or file-like object
+
+  response = client.content.parse(
+      input="loan_application_john_smith.pdf",  
+      processing_options={
+          "ocr_mode": "layout_aware",
+          "classify_content": ["bank_statement", "loan_application", "id_document", "other"], 
+          "generate_document_title_metadescription": True,
+          "split_into_documents": True, # If your file contains multiple documents (e.g. a scan of several forms).
+          "chunking_strategy": "page",
+          "contextualize_chunks": True, # Agentic process adds missing context            
+          "generate_table_summary": True, 
+          "generate_figure_summary": True
+      }
+  )
+
+  job_id = response["job_id"]
+  ```
+
+  ```bash Node
+  // input formats: email, pdf, docx, doc, xlsx, xls, csv, xml, jpg, jpeg, png, gif, bmp, tiff, pptx, ppt
+  // input can be a local path, File/Blob (browser), or Buffer/stream
+
+  const response = await client.content.parse({
+    input: "loan_application_john_smith.pdf",
+    processing_options: {
+      ocr_mode: "layout_aware",
+      classify_content: ["bank_statement", "loan_application", "id_document", "other"],
+      generate_document_title_metadescription: true,
+      split_into_documents: true,
+      chunking_strategy: "page",
+      contextualize_chunks: true,
+      generate_table_summary: true,
+      generate_figure_summary: true
+    }
+  });
+
+  const job_id = response.job_id;
+  ```
+</CodeGroup>
+
+### Step 4: Poll for job completion
+
+<Info>
+Because jobs run through a multi-step pipeline, they may take several minutes to complete. Additional `processing_options` can further increase this time.
+</Info>
+
+<CodeGroup>
+  ```bash Python
+  documents = client.jobs.get_document_response(job_id, include=["layout_bbox", "blocks", "page_images"])
+  print(documents)
+  ```
+
+  ```bash Node
+  const documents = await client.jobs.get_document_response(job_id, { include: ["layout_bbox", "blocks"] });
+  console.log(documents);
+  ```
+</CodeGroup>
+
+```jsonc response
+{
+    "job_id": "b7e8c2a1-4f3d-4e2a-9c1b-2d5f6a7e8c2b",
+    "status": "completed",
+    "usage": { "credits": 400, "pages": 200 },
+    "has_more": false,
+    "result": [
+      // 1 object per split document
+        {
+            "doc_id": "b1234567-89ab-4cde-f012-3456789abcde",
+            "title": "JPMorgan Chase Bank Statement 10/31/24",
+            "meta_description": "Bank statement for John Smith covering transactions from October 1-31, 2024, with closing balance of $3,247.85",
+            "classification": "bank_statement",
+            "file_type": "pdf",
+            "chunks": [
+                {
+                    "id": "b7e8c2a1-4f3d-4e2a-9c1b-2d5f6a7e8c2b",
+                    "chunk_type": "page",
+                    "order": 1,
+                    "orig_page": 1,
+                    "content": "Statement of account...",
+                    "md_content": "# Statement of account...",
+                    "contextualized_content": "This chunk is from a JPMorgan Chase bank statement for John Smith... # Statement of account...",
+                    "blocks": [
+                        { "type": "title", "text": "Statement of account...", "bbox": { "top": 30, "left": 150, "width": 300, "height": 50 }, "confidence": 0.98 },
+                        { "type": "figure", "summary": "JPMorgan Chase logo", "image_url": "https://...signed", "bbox": { "top": 35, "left": 30, "width": 80, "height": 40 }, "confidence": 0.89 },
+                        { 
+                            "type": "table", 
+                            "summary": "This table shows the opening and closing balance for October 2024, with the opening balance being $2,500.00 and the closing balance being $3,247.85.", 
+                            "bbox": { "top": 90, "left": 400, "width": 320, "height": 120 }, 
+                            "cells": [
+                                // … truncated for brevity …
+                            ] 
+                        },
+                        { "type": "paragraph", "text": "Your profile is 100% complete...", "bbox": { "top": 220, "left": 30, "width": 600, "height": 40 }, "confidence": 0.96 },
+                        // … truncated for brevity …
+                    ]
+                }
+            ],
+            "source": {
+                "start_index": 0
+            }
+        },
+        // Additional documents truncated for brevity …
+    ]
+}
+```
+
+### Step 5: Extract key-value fields (optional)
+
+<CodeGroup>
+    ```bash Python
+  from pydantic import BaseModel, Field
+  from typing import List, Optional
+
+  class BankStatement(BaseModel):
+      account_holder: str = Field(..., description="First and last name")
+      closing_balance: float
+      statement_period_start: str = Field(..., description="ISO date")
+      statement_period_end: str = Field(..., description="ISO date")
+
+  for doc in documents["result"]:
+      if doc.get("classification") == "bank_statement":
+          extracted = client.content.extract(
+              parsed_document=doc,   
+              extraction_schema=BankStatement
+          )
+          print(extracted)
+  ```
+
+  ```bash Node
+  const { z } = require("zod");
+
+  const BankStatement = z.object({
+    account_holder: z.string(),
+    closing_balance: z.number(),
+    statement_period_start: z.string(), // ISO date
+    statement_period_end: z.string(),   // ISO date
+  });
+
+  for (const doc of documents.result) {
+    if (doc.classification === "bank_statement") {
+      const extracted = await client.content.extract({
+        parsedDocument: doc,
+        extractionSchema: BankStatement,
+      });
+      console.log(extracted);
+    }
+  }
+  ```
+</CodeGroup>
+
+```json response
+{
+    "job_id": "b7e3f8a2-4c1d-4e2a-9f3b-2a1c5e6d8f9a",
+    "status": "succeeded",
+    "extracted": {
+        "account_holder": "John Smith",
+        "closing_balance": 3247.85,
+        "statement_period_start": "2024-10-01",
+        "statement_period_end": "2024-10-31",
+    },
+    "usage": {"credits": 2, "pages": 4
+}
+```
+
 
 ## Next steps
 
@@ -79,5 +237,5 @@ Now that you have your docs running, explore these key features:
 </CardGroup>
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  **Need help?** Join our [Discord](https://mintlify.com/community).
 </Note>

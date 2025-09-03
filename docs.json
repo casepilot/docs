@@ -17,16 +17,14 @@
             "group": "Getting started",
             "pages": [
               "index",
-              "quickstart",
-              "file_formats",
-              "languages"
+              "quickstart"
             ]
           },
           {
             "group": "Ingestion",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "ingestion/file_formats",
+              "ingestion/languages"
             ]
           },
           {
@@ -43,14 +41,6 @@
               "essentials/code",
               "essentials/images",
               "essentials/reusable-snippets"
-            ]
-          },
-          {
-            "group": "AI tools",
-            "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
             ]
           }
         ]

@@ -44,8 +44,10 @@ Navigate to your [dashboard](https://dashboard.ingestor.io) to obtain a copy of 
 
 ### Step 3: Call the document parsing API
 
-The Parsing API processes and extracts data from various file formats using multi-stage pipelines. 
-It supports common enrichment requirements like content classification, document splitting, and contextual chunking. 
+We use distributed systems with high concurrency to process your documents.
+
+Each document passes through multiple stages in the pipeline. Every stage builds on the last: splitting files, analyzing layout, extraction, splitting files, removing noise, formatting content, classification, enriching content, etc.
+
 The example below shows how to parse a loan application scan that may include multiple documents, such as the form, ID, and supporting materials.
 
 <CodeGroup>

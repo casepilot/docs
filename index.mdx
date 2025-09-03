@@ -119,7 +119,29 @@ If you need granular control, use the returned block elements to assemble your o
 ```
 </Step>
 <Step title="Extracting structured outputs">
-If you need specific fields from a document (e.g., `first_name`, `closing_balance`), use our `extract` endpoint. See the [quickstart](/quickstart) for a full example of this.
+If you need specific fields from a document (e.g., `first_name`, `closing_balance`), use our `extract` endpoint. 
+
+```bash Python
+  import os
+  from pydantic import BaseModel, Field
+
+  class BankStatement(BaseModel):
+      account_holder: str = Field(..., description="First and last name")
+      closing_balance: float
+      statement_period_start: str = Field(..., description="ISO date")
+      statement_period_end: str = Field(..., description="ISO date")
+
+  for doc in documents["result"]:
+      if doc.get("classification") == "bank_statement":
+          extracted = client.content.extract(
+              # To use your own OpenAI key and avoid Ingestor charges, uncomment the next line:
+              # openai_api_key=os.getenv("OPENAI_API_KEY"),
+              parsed_document=doc,
+              extraction_schema=BankStatement,
+          )
+          print(extracted)
+  ```
+
 
 ```json response
 {

@@ -1,6 +1,5 @@
 ---
 title: 'Quickstart'
-description: 'Get started with Ingestor'
 ---
 
 ## Get started in five steps
@@ -9,6 +8,8 @@ Convert any document into high quality, LLM ready data.
 
 
 ### Step 1: Install the Ingestor SDK 
+
+Our SDK is currently available for Python and Node, with REST support coming soon.
 
 <CodeGroup>
   ```bash Python
@@ -24,7 +25,7 @@ Convert any document into high quality, LLM ready data.
 
 ### Step 2: Initialize client
 
-Navigate to your account dashboard to obtain a copy of your API key
+Navigate to your [dashboard](https://dashboard.ingestor.io) to obtain a copy of your API key.
 
 <CodeGroup>
   ```bash Python
@@ -42,6 +43,10 @@ Navigate to your account dashboard to obtain a copy of your API key
 
 
 ### Step 3: Call the document parsing API
+
+The Parsing API processes and extracts data from various file formats using multi-stage pipelines. 
+It supports common enrichment requirements like content classification, document splitting, and contextual chunking. 
+The example below shows how to parse a loan application scan that may include multiple documents, such as the form, ID, and supporting materials.
 
 <CodeGroup>
   ```bash Python
@@ -155,15 +160,17 @@ Because jobs run through a multi-step pipeline, they may take several minutes to
 
 ### Step 5: Extract key-value fields (optional)
 
-Use our SDK to extract specific key-value pairs from the parsed document response. 
-This feature is free to use, but requires your own `OPENAI_API_KEY`.
+Use our SDK to extract specific key-value pairs from the parsed document response.  
+You have two options:
+- **Use our hosted endpoint** (default): We'll handle the extraction and bill you for usage.
+- **Bring your own OpenAI API key**: Pass your own `openai_api_key` and we won't charge you for extraction, OpenAI will bill you directly.
+
+Best practices are applied to ensure reliable structured outputs.
 
 <CodeGroup>
-    ```bash Python
+  ```bash Python
   import os
   from pydantic import BaseModel, Field
-
-  OPENAI_KEY = os.getenv("OPENAI_API_KEY")
 
   class BankStatement(BaseModel):
       account_holder: str = Field(..., description="First and last name")
@@ -174,9 +181,9 @@ This feature is free to use, but requires your own `OPENAI_API_KEY`.
   for doc in documents["result"]:
       if doc.get("classification") == "bank_statement":
           extracted = client.content.extract(
-              model="gpt-5-mini",
-              openai_api_key=OPENAI_KEY,
-              parsed_document=doc,   
+              # To use your own OpenAI key and avoid Ingestor charges, uncomment the next line:
+              # openai_api_key=os.getenv("OPENAI_API_KEY"),
+              parsed_document=doc,
               extraction_schema=BankStatement,
           )
           print(extracted)

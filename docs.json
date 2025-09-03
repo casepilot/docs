@@ -3,7 +3,7 @@
   "theme": "mint",
   "name": "Ingestor Docs",
   "colors": {
-    "primary": "#FA9819",
+    "primary": "#CD4900",
     "light": "#FA9819",
     "dark": "#CD4900"
   },
@@ -17,21 +17,20 @@
             "group": "Getting started",
             "pages": [
               "index",
-              "how_it_works",
               "quickstart",
               "file_formats",
               "languages"
             ]
           },
           {
-            "group": "Document processing",
+            "group": "Ingestion",
             "pages": [
               "essentials/settings",
               "essentials/navigation"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Configuration",
             "pages": [
               "essentials/settings",
               "essentials/navigation"
@@ -80,19 +79,9 @@
     "global": {
       "anchors": [
         {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
           "anchor": "Community",
           "href": "https://mintlify.com/community",
-          "icon": "slack"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
+          "icon": "discord"
         }
       ]
     }
@@ -105,13 +94,13 @@
     "links": [
       {
         "label": "Support",
-        "href": "mailto:hi@mintlify.com"
+        "href": "mailto:contact@ingestor.io"
       }
     ],
     "primary": {
       "type": "button",
       "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
+      "href": "https://dashboard.ingestor.io"
     }
   },
   "contextual": {

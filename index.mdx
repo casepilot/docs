@@ -1,16 +1,145 @@
 ---
 title: "What is Ingestor?"
-description: "A simple API to turn any document into clean, structured data"
+description: "A simple API to turn any document into clean, LLM ready data"
 ---
 
-Ingestor is the fastest way to turn messy, unstructured documents into clean, structured data, ready for your database, search, or GenAI applications.
+## Why did we build this?
+We spent **18 months** building ingestion pipelines in the legal AI space.
 
-Building a robust document ingestion pipeline is hard. Extracting accurate data from PDFs, scans, emails, and other formats involves complex OCR, handling edge cases, and cleaning up low-quality or inconsistent input. Many teams spend months of engineering time building and maintaining these pipelines, only to run into new challenges as requirements grow.
+One thing we learned, document extraction isn't easy. Especially when you need **state of the art performance** as even one missed sentence can have catastrophic effects in industries like medicine, legal, and finance.
 
-**Ingestor solves this for you.**  
-Just send any document to our simple API, and get back reliable, enriched, and structured data—no need to build or maintain your own pipeline. Use the results to power semantic search, Retrieval-Augmented Generation (RAG), analytics, or any workflow that needs high-quality data.
+We tried existing solutions, but we found none that could truly handle **unstructured** data. They all expect you to have some idea of what you're processing.
 
-Whether you’re building legal, financial, healthcare, or enterprise AI products, Ingestor lets you focus on your application—not on document plumbing.
+The documents we processed were legal briefs containing thousands of pages per PDF. They were in no order, had no appendix, could have tables or photos, and were generally low-quality scans.
+
+And due to our strict **zero data retention** policies, we could never see the documents we dealing with.
+
+We needed to extract everything. **Every word**, **every photo**, **every table**. And it doesn't stop there. After extraction we still have run through content enrichment, like contextualizing chunks so our **agents had full context**, etc.
+
+No existing solution could deliver this.
+
+So we built our own. Custom pipelines that can intake any document type and run multiple extraction and enrichment processes to deliver clean, structured data that can be stored in any database.
+
+To save other developers the pain we went through, we’ve made these pipelines available with Ingestor. So you can focus on your business logic, not document extraction.
+
+## How it works 
+
+
+<Steps>
+
+<Step title="Input a document">
+  You can upload files in any of the following formats:  
+  **email, pdf, docx, doc, xlsx, xls, csv, xml, jpg, jpeg, png, gif, bmp, tiff, pptx, ppt**
+
+  ```bash Python
+  response = client.content.parse(
+      input="loan_application_john_smith.pdf",  # Collection of many documents in 1 PDF
+      processing_options={
+          "ocr_mode": "layout_aware", # Extracts tables, paragraphs, forms, signatures, etc.
+          "classify_content": ["bank_statement", "loan_application", "id_document", "other"],  # Choose optional classifications to assign to docs
+          "generate_document_title_metadescription": True, # Generates a title and meta description for semantic search, RAG, and frontend UI.
+          "split_into_documents": True, # Splits a single document into its individual components (e.g., bank statement, ID document, etc.)
+          "chunking_strategy": "page", # Or section / paragraph
+          "contextualize_chunks": True, # Agentic process that adds missing context to each chunk so it can stand alone.
+          "generate_table_summary": True, # Generates a summary of any tables found. Helps with search retrieval accuracy.
+          "generate_figure_summary": True, # Generates a summary of any images found. Helps with search retrieval accuracy.
+          "content_unique_id": True, # Helps prevent duplicate content being stored in your database (it happens). 
+          "extract_images": True, # To display on front end UI, etc
+          "remove_blocks": ["footer", "header"] # Some elements are almost always noise that can distract an LLM
+      }
+  )
+  ```
+</Step>
+
+<Step title="Pipeline processing">
+We use distributed systems with high concurrency to process your documents. 
+
+Each document passes through multiple stages in the pipeline. Every stage builds on the last: splitting files, analyzing layout, extraction, splitting files, removing noise, formatting content, classification, enriching content, etc.
+
+</Step>
+
+<Step title="LLM ready data">
+Our pipeline returns structured data that is ready to store in any vector database, RAG engine, or downstream system.  
+
+Use `contextualized_content` for embeddings and chunks passed to an LLM. Use `title` and `meta_description` as document previews for your agent, just like web search, or for display in a frontend search UI.  
+
+If you need granular control, use the returned block elements to assemble your own content. Each block includes an element type (e.g., footer, paragraph, table) along with bounding boxes, confidence scores, and optional summaries.  
+
+  ```bash Python
+  documents = client.jobs.get_document_response(job_id, include=["layout_bbox", "blocks", "page_images"])
+  print(documents)
+  ```
+
+```jsonc response
+{
+    "job_id": "b7e8c2a1-4f3d-4e2a-9c1b-2d5f6a7e8c2b",
+    "status": "completed",
+    "usage": { "credits": 400, "pages": 200 },
+    "has_more": false,
+    "result": [
+      // 1 object per split document
+        {
+            "doc_id": "b1234567-89ab-4cde-f012-3456789abcde",
+            "title": "JPMorgan Chase Bank Statement 10/31/24",
+            "meta_description": "Bank statement for John Smith covering transactions from October 1-31, 2024, with closing balance of $3,247.85",
+            "classification": "bank_statement",
+            "file_type": "pdf",
+            "chunks": [
+                {
+                    "id": "b7e8c2a1-4f3d-4e2a-9c1b-2d5f6a7e8c2b",
+                    "chunk_type": "page",
+                    "order": 1,
+                    "orig_page": 1,
+                    "content": "Statement of account...",
+                    "md_content": "# Statement of account...",
+                    "contextualized_content": "This chunk is from a JPMorgan Chase bank statement for John Smith... # Statement of account...",
+                    "blocks": [
+                        { "type": "title", "text": "Statement of account...", "bbox": { "top": 30, "left": 150, "width": 300, "height": 50 }, "confidence": 0.98 },
+                        { "type": "figure", "summary": "JPMorgan Chase logo", "image_url": "https://...signed", "bbox": { "top": 35, "left": 30, "width": 80, "height": 40 }, "confidence": 0.89 },
+                        { 
+                            "type": "table", 
+                            "summary": "This table shows the opening and closing balance for October 2024, with the opening balance being $2,500.00 and the closing balance being $3,247.85.", 
+                            "bbox": { "top": 90, "left": 400, "width": 320, "height": 120 }, 
+                            "cells": [
+                                // … truncated for brevity …
+                            ] 
+                        },
+                        { "type": "paragraph", "text": "Your profile is 100% complete...", "bbox": { "top": 220, "left": 30, "width": 600, "height": 40 }, "confidence": 0.96 },
+                        // … truncated for brevity …
+                    ]
+                }
+            ],
+            "source": {
+                "start_index": 0
+            }
+        },
+        // Additional documents truncated for brevity …
+    ]
+}
+```
+</Step>
+<Step title="Extracting structured outputs">
+If you need specific fields from a document (e.g., `first_name`, `closing_balance`), use our `extract` endpoint. See the [quickstart](/quickstart) for a full example of this.
+
+```json response
+{
+    "status": "succeeded",
+    "extracted": {
+        "account_holder": "John Smith",
+        "closing_balance": 3247.85,
+        "statement_period_start": "2024-10-01",
+        "statement_period_end": "2024-10-31",
+    },
+    "usage": { "credits": 2, "pages": 4 },
+}
+```
+
+</Step>
+
+</Steps>
+
+
+
 
 ## Get started
 

@@ -56,14 +56,17 @@ The example below shows how to parse a loan application scan that may include mu
   response = client.content.parse(
       input="loan_application_john_smith.pdf",  
       processing_options={
-          "ocr_mode": "layout_aware",
-          "classify_content": ["bank_statement", "loan_application", "id_document", "other"], 
-          "generate_document_title_metadescription": True,
-          "split_into_documents": True, # If your file contains multiple documents (e.g. a scan of several forms).
-          "chunking_strategy": "page",
-          "contextualize_chunks": True, # Agentic process adds missing context            
-          "generate_table_summary": True, 
-          "generate_figure_summary": True
+          "ocr_mode": "layout_aware", # Extracts tables, paragraphs, forms, signatures, etc.
+          "classify_content": ["bank_statement", "loan_application", "id_document", "other"],  # Choose optional classifications to assign to docs
+          "generate_document_title_metadescription": True, # Generates a title and meta description for semantic search, RAG, and frontend UI.
+          "split_into_documents": True, # Splits a single document into its individual components (e.g., bank statement, ID document, etc.)
+          "chunking_strategy": "page", # Or section / paragraph
+          "contextualize_chunks": True, # Agentic process that adds missing context to each chunk so it can stand alone.
+          "generate_table_summary": True, # Generates a summary of any tables found. Helps with search retrieval accuracy.
+          "generate_figure_summary": True, # Generates a summary of any images found. Helps with search retrieval accuracy.
+          "content_unique_id": True, # Helps prevent duplicate content being stored in your database (it happens). 
+          "extract_images": True, # To display on front end UI, etc
+          "remove_blocks": ["footer", "header"] # Because some elements are almost always noise that can distract an LLM
       }
   )
 
@@ -224,11 +227,7 @@ Best practices are applied to ensure reliable structured outputs.
         "statement_period_start": "2024-10-01",
         "statement_period_end": "2024-10-31",
     },
-    "model": "gpt-5-mini",
-    "usage": {
-        "input_tokens": 1247,
-        "output_tokens": 127,
-    }
+    "usage": { "credits": 2, "pages": 4 },
 }
 ```
 

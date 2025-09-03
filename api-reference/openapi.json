@@ -1,8 +1,8 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "OpenAPI Plant Store",
-    "description": "A sample API that uses a plant store as an example to demonstrate features in the OpenAPI specification",
+    "title": "Ingestor",
+    "description": "OpenAPI specification for Ingestor",
     "license": {
       "name": "MIT"
     },
@@ -10,7 +10,7 @@
   },
   "servers": [
     {
-      "url": "http://sandbox.mintlify.com"
+      "url": "https://api.ingestor.io"
     }
   ],
   "security": [
@@ -19,198 +19,391 @@
     }
   ],
   "paths": {
-    "/plants": {
-      "get": {
-        "description": "Returns all plants from the system that the user has access to",
-        "parameters": [
-          {
-            "name": "limit",
-            "in": "query",
-            "description": "The maximum number of results to return",
-            "schema": {
-              "type": "integer",
-              "format": "int32"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Plant response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Plant"
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Unexpected error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      },
+    "/v1/content/parse": {
       "post": {
-        "description": "Creates a new plant in the store",
+        "summary": "Create ingestion job",
+        "description": "Parse a document to extract layout-aware content. Returns a job_id to poll.",
         "requestBody": {
-          "description": "Plant to add to the store",
+          "required": true,
           "content": {
             "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/NewPlant"
-              }
+              "schema": { "$ref": "#/components/schemas/ParseRequest" }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
-          "200": {
-            "description": "plant response",
+          "202": {
+            "description": "Accepted for async processing",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Plant"
-                }
+                "schema": { "$ref": "#/components/schemas/ParseAccepted" }
               }
             }
           },
-          "400": {
-            "description": "unexpected error",
+          "200": {
+            "description": "Synchronous completion",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
+                "schema": { "$ref": "#/components/schemas/JobResult" }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Client error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
               }
             }
           }
         }
       }
     },
-    "/plants/{id}": {
-      "delete": {
-        "description": "Deletes a single plant based on the ID supplied",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "ID of plant to delete",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Plant deleted",
-            "content": {}
-          },
-          "400": {
-            "description": "unexpected error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  },
-  "webhooks": {
-    "/plant/webhook": {
+    "/v1/uploads/presign": {
       "post": {
-        "description": "Information about a new plant added to the store",
+        "summary": "Create upload URL",
         "requestBody": {
-          "description": "Plant added to the store",
+          "required": true,
           "content": {
             "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/NewPlant"
-              }
+              "schema": { "$ref": "#/components/schemas/UploadPresignRequest" }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Return a 200 status to indicate that the data was received successfully"
+            "description": "Presigned URL issued",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UploadPresignResponse" }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Client error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/jobs/{job_id}": {
+      "get": {
+        "summary": "Get job status",
+        "parameters": [
+          { "in": "path", "name": "job_id", "required": true, "schema": { "type": "string" } },
+          { "in": "query", "name": "include", "schema": { "type": "array", "items": { "type": "string" }, "example": ["blocks", "page_images", "layout_bbox"] }, "style": "form", "explode": true },
+          { "in": "query", "name": "cursor", "schema": { "type": "string" } },
+          { "in": "query", "name": "wait", "description": "e.g. 20s to long-poll up to 20 seconds", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current status/results",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/JobResult" }
+              }
+            }
+          },
+          "202": {
+            "description": "Still processing (when long-poll times out)",
+            "headers": {
+              "retry-after": {
+                "schema": { "type": "integer" },
+                "description": "Seconds to wait before retrying"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ParseAccepted" }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Client error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/jobs/{job_id}/cancel": {
+      "post": {
+        "summary": "Cancel job",
+        "parameters": [
+          { "in": "path", "name": "job_id", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job cancellation acknowledged",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CancelResponse" }
+              }
+            }
+          },
+          "202": {
+            "description": "Cancellation in progress",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CancelResponse" }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Client error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/content/extract": {
+      "post": {
+        "summary": "Create extraction job",
+        "description": "Extract structured fields from a parsed document using LLM.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ExtractRequest" }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted for async processing",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ExtractAccepted" }
+              }
+            }
+          },
+          "200": {
+            "description": "Synchronous completion",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ExtractResult" }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Client error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/content/extract/{job_id}": {
+      "get": {
+        "summary": "Get extraction status",
+        "parameters": [
+          { "in": "path", "name": "job_id", "required": true, "schema": { "type": "string" } },
+          { "in": "query", "name": "wait", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current status/results",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ExtractResult" }
+              }
+            }
+          },
+          "202": {
+            "description": "Still processing (when long-poll times out)",
+            "headers": {
+              "retry-after": {
+                "schema": { "type": "integer" },
+                "description": "Seconds to wait before retrying"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ExtractAccepted" }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Client error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
           }
         }
       }
     }
   },
+  "webhooks": {},
   "components": {
     "schemas": {
-      "Plant": {
-        "required": [
-          "name"
-        ],
+      "ParseRequest": {
         "type": "object",
+        "required": ["input"],
         "properties": {
-          "name": {
-            "description": "The name of the plant",
-            "type": "string"
+          "input": {
+            "description": "Document input. Provide either a direct path/URL or an object with file_id or file.",
+            "oneOf": [
+              { "type": "string", "description": "Path or URL" },
+              {
+                "type": "object",
+                "oneOf": [
+                  { "type": "object", "required": ["file_id"], "properties": { "file_id": { "type": "string" } } },
+                  { "type": "object", "required": ["file"], "properties": { "file": { "type": "string", "description": "Path or URL" } } }
+                ]
+              }
+            ]
           },
-          "tag": {
-            "description": "Tag to specify the type",
-            "type": "string"
-          }
+          "processing_options": {
+            "type": "object",
+            "description": "Optional processing flags",
+            "additionalProperties": true,
+            "properties": {
+              "ocr_mode": { "type": "string", "enum": ["basic", "layout_aware"], "default": "layout_aware" },
+              "classify_content": { "type": "array", "items": { "type": "string" } },
+              "generate_document_title": { "type": "boolean" },
+              "generate_document_metadescription": { "type": "boolean" },
+              "generate_table_summary": { "type": "boolean" },
+              "generate_figure_summary": { "type": "boolean" },
+              "table_format": { "type": "string", "enum": ["markdown", "html"], "default": "markdown" },
+              "contextualize_chunks": { "type": "boolean" },
+              "content_unique_id": { "type": "boolean" },
+              "chunking_strategy": { "type": "string", "enum": ["page", "title_section", "paragraph"] },
+              "split_into_documents": { "type": "boolean" },
+              "extract_images": { "type": "boolean" },
+              "remove_blocks": { "type": "array", "items": { "type": "string" } }
+            }
+          },
+          "idempotency_key": { "type": "string" }
         }
       },
-      "NewPlant": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Plant"
-          },
-          {
-            "required": [
-              "id"
-            ],
-            "type": "object",
-            "properties": {
-              "id": {
-                "description": "Identification number of the plant",
-                "type": "integer",
-                "format": "int64"
-              }
-            }
-          }
-        ]
+      "ParseAccepted": {
+        "type": "object",
+        "required": ["job_id", "status"],
+        "properties": {
+          "job_id": { "type": "string" },
+          "status": { "type": "string", "enum": ["RUNNING", "QUEUED"] }
+        }
       },
-      "Error": {
-        "required": [
-          "error",
-          "message"
-        ],
+      "JobUsage": {
         "type": "object",
         "properties": {
+          "credits": { "type": "integer" },
+          "pages": { "type": "integer" }
+        }
+      },
+      "JobResult": {
+        "type": "object",
+        "required": ["job_id", "status", "result"],
+        "properties": {
+          "job_id": { "type": "string" },
+          "status": { "type": "string", "enum": ["SUCCEEDED", "RUNNING", "FAILED"] },
+          "has_more": { "type": "boolean" },
+          "next_cursor": { "type": "string", "nullable": true },
+          "usage": { "$ref": "#/components/schemas/JobUsage" },
+          "error": { "$ref": "#/components/schemas/Error" },
+          "result": { "type": "array", "items": { "type": "object" } }
+        }
+      },
+      "UploadPresignRequest": {
+        "type": "object",
+        "required": ["filename", "content_type"],
+        "properties": {
+          "filename": { "type": "string" },
+          "content_type": { "type": "string" },
+          "content_length": { "type": "integer", "format": "int64" },
+          "checksum": { "type": "string", "description": "Base64-encoded SHA256 checksum (optional)" }
+        }
+      },
+      "UploadPresignResponse": {
+        "type": "object",
+        "required": ["file_id", "url"],
+        "properties": {
+          "file_id": { "type": "string" },
+          "url": { "type": "string" },
+          "method": { "type": "string", "enum": ["PUT", "POST"], "default": "POST" },
+          "fields": { "type": "object", "additionalProperties": { "type": "string" } },
+          "expires_in": { "type": "integer", "description": "Seconds until URL expiration" }
+        }
+      },
+      "CancelResponse": {
+        "type": "object",
+        "required": ["job_id", "status"],
+        "properties": {
+          "job_id": { "type": "string" },
+          "status": { "type": "string", "enum": ["CANCELLED", "ALREADY_COMPLETED", "NOT_FOUND", "FAILED"] }
+        }
+      },
+      "ExtractRequest": {
+        "type": "object",
+        "required": ["parsed_document", "extraction_schema"],
+        "properties": {
+          "parsed_document": { "type": "object" },
+          "extraction_schema": { "type": "object", "description": "Target schema (e.g., JSON Schema)" },
+          "strict": { "type": "boolean" },
+          "model": { "type": "string", "description": "LLM model identifier" },
+          "openai_api_key": { "type": "string" },
+          "additional_context": { "type": "string" },
+          "idempotency_key": { "type": "string" }
+        }
+      },
+      "ExtractAccepted": {
+        "type": "object",
+        "required": ["job_id", "status"],
+        "properties": {
+          "job_id": { "type": "string" },
+          "status": { "type": "string", "enum": ["RUNNING", "QUEUED"] }
+        }
+      },
+      "ExtractResult": {
+        "type": "object",
+        "required": ["job_id", "status"],
+        "properties": {
+          "job_id": { "type": "string" },
+          "status": { "type": "string", "enum": ["SUCCEEDED", "RUNNING", "FAILED"] },
+          "doc_id": { "type": "string" },
+          "extracted": { "type": "object" },
+          "warnings": { "type": "array", "items": { "type": "string" } },
+          "usage": { "$ref": "#/components/schemas/JobUsage" },
+          "error": { "$ref": "#/components/schemas/Error" }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
           "error": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "message": {
-            "type": "string"
+            "type": "object",
+            "required": ["code", "message"],
+            "properties": {
+              "code": { "type": "string" },
+              "message": { "type": "string" },
+              "details": { "type": "array", "items": { "type": "object" } }
+            }
           }
         }
       }
     },
     "securitySchemes": {
       "bearerAuth": {
-        "type": "http",
-        "scheme": "bearer"
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-KEY"
       }
     }
   }

@@ -22,7 +22,7 @@
     "/v1/content/parse": {
       "post": {
         "summary": "Create ingestion job",
-        "description": "Parse a document to extract layout-aware content. Returns a job_id to poll.",
+        "description": "Parse a document to get LLM ready data. Returns a job_id to poll.",
         "requestBody": {
           "required": true,
           "content": {
@@ -32,19 +32,11 @@
           }
         },
         "responses": {
-          "202": {
-            "description": "Accepted for async processing",
+          "200": {
+            "description": "Accepted for processing",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/ParseAccepted" }
-              }
-            }
-          },
-          "200": {
-            "description": "Synchronous completion",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/JobResult" }
               }
             }
           },
@@ -61,7 +53,8 @@
     },
     "/v1/uploads/presign": {
       "post": {
-        "summary": "Create upload URL",
+        "summary": "Create file upload URL",
+        "description": "Create a signed URL to upload a file.",
         "requestBody": {
           "required": true,
           "content": {
@@ -92,12 +85,11 @@
     },
     "/v1/jobs/{job_id}": {
       "get": {
-        "summary": "Get job status",
+        "summary": "Get parsing result",
         "parameters": [
-          { "in": "path", "name": "job_id", "required": true, "schema": { "type": "string" } },
-          { "in": "query", "name": "include", "schema": { "type": "array", "items": { "type": "string" }, "example": ["blocks", "page_images", "layout_bbox"] }, "style": "form", "explode": true },
-          { "in": "query", "name": "cursor", "schema": { "type": "string" } },
-          { "in": "query", "name": "wait", "description": "e.g. 20s to long-poll up to 20 seconds", "schema": { "type": "string" } }
+          { "in": "path", "name": "job_id", "description": "ID of the job to fetch. Returned from /content/parse.", "required": true, "schema": { "type": "string" } },
+          { "in": "query", "name": "include", "description": "Increase response granularity. Optional values: blocks, layout_bbox, document_images.", "schema": { "type": "array", "items": { "type": "string", "enum": ["blocks", "layout_bbox", "document_images"] }, "example": ["blocks", "document_images", "layout_bbox"] }, "style": "form", "explode": true },
+          { "in": "query", "name": "cursor", "description": "Pagination cursor for fetching the next set of results.", "schema": { "type": "string" } }
         ],
         "responses": {
           "200": {
@@ -109,7 +101,7 @@
             }
           },
           "202": {
-            "description": "Still processing (when long-poll times out)",
+            "description": "Still processing",
             "headers": {
               "retry-after": {
                 "schema": { "type": "integer" },
@@ -180,19 +172,11 @@
           }
         },
         "responses": {
-          "202": {
+          "200": {
             "description": "Accepted for async processing",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/ExtractAccepted" }
-              }
-            }
-          },
-          "200": {
-            "description": "Synchronous completion",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ExtractResult" }
               }
             }
           },
@@ -209,7 +193,7 @@
     },
     "/v1/content/extract/{job_id}": {
       "get": {
-        "summary": "Get extraction status",
+        "summary": "Get extraction result",
         "parameters": [
           { "in": "path", "name": "job_id", "required": true, "schema": { "type": "string" } },
           { "in": "query", "name": "wait", "schema": { "type": "string" } }
@@ -224,18 +208,77 @@
             }
           },
           "202": {
-            "description": "Still processing (when long-poll times out)",
+            "description": "Still processing",
             "headers": {
-              "retry-after": {
-                "schema": { "type": "integer" },
-                "description": "Seconds to wait before retrying"
-              }
+              "retry-after": { "schema": { "type": "integer" }, "description": "Seconds to wait before retrying" }
             },
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ExtractAccepted" } } }
+          },
+          "4XX": {
+            "description": "Client error",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ExtractAccepted" }
+                "schema": { "$ref": "#/components/schemas/Error" }
               }
             }
+          }
+        }
+      }
+    },
+    "/v1/content/contextualize": {
+      "post": {
+        "summary": "Create contextualized chunks job",
+        "description": "Create a job that splits a document into chunks and agentically generates contextualized content for each chunk.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ContextualizeRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Accepted for processing",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ContextualizeAccepted" }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Client error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/content/contextualize/{job_id}": {
+      "get": {
+        "summary": "Get contextualized chunks result",
+        "parameters": [
+          { "in": "path", "name": "job_id", "required": true, "schema": { "type": "string" } },
+          { "in": "query", "name": "cursor", "description": "Pagination cursor for fetching the next set of results.", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current status/results",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ContextualizeResult" }
+              }
+            }
+          },
+          "202": {
+            "description": "Still processing",
+            "headers": {
+              "retry-after": { "schema": { "type": "integer" }, "description": "Seconds to wait before retrying" }
+            },
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ContextualizeAccepted" } } }
           },
           "4XX": {
             "description": "Client error",
@@ -252,44 +295,123 @@
   "webhooks": {},
   "components": {
     "schemas": {
+      "ContextualizeRequest": {
+        "type": "object",
+        "required": ["content", "maximum_chunk_length", "generate_document_title_metadescription"],
+        "properties": {
+          "content": { "type": "string", "description": "Document content to chunk and contextualize. Pass the entire document" },
+          "maximum_chunk_length": { "type": "integer", "default": 250, "description": "Target max characters per chunk. Recursive sentence splitting avoids mid-word breaks, so content may slightly exceed this value." },
+          "generate_document_title_metadescription": { "type": "boolean", "description": "Generates a title and metadescription of the document. Useful for front end UI and RAG applications." },
+          "idempotency_key": { "type": "string", "description": "A unique key to make the request idempotent. Reusing the same key returns the original job response instead of creating a new job." }
+        }
+      },
+      "ContextualizeAccepted": {
+        "type": "object",
+        "required": ["job_id", "status"],
+        "properties": {
+          "job_id": { "type": "string" },
+          "status": { "type": "string", "enum": ["RUNNING", "QUEUED", "COMPLETED"] }
+        }
+      },
+      "ContextualizeChunk": {
+        "type": "object",
+        "required": ["id", "order", "content", "contextualized_content"],
+        "properties": {
+          "id": { "type": "string", "description": "UUID for chunk." },
+          "order": { "type": "integer", "description": "Chunk order in the sequence." },
+          "content": { "type": "string", "description": "Raw chunk content." },
+          "contextualized_content": { "type": "string", "description": "Contextualized version of content for embeddings and RAG." },
+          "title": { "type": "string", "description": "LLM Generated document title. Returned when generate_document_title_metadescription is true." },
+          "meta_description": { "type": "string", "description": "LLM generated 2 sentence document summary. Returned when generate_document_title_metadescription is true." }
+        }
+      },
+      "ContextualizeResult": {
+        "type": "object",
+        "required": ["job_id", "status", "chunks"],
+        "properties": {
+          "job_id": { "type": "string" },
+          "status": { "type": "string", "enum": ["COMPLETED", "RUNNING", "FAILED"] },
+          "has_more": { "type": "boolean", "description": "True if additional results are available. Use next_cursor to fetch the next page." },
+          "next_cursor": { "type": "string", "nullable": true, "description": "Opaque cursor for pagination. Pass as ?cursor= to retrieve the next page; null when no more results." },
+          "usage": { "$ref": "#/components/schemas/JobUsage" },
+          "error": { "$ref": "#/components/schemas/Error" },
+          "chunks": { "type": "array", "items": { "$ref": "#/components/schemas/ContextualizeChunk" } }
+        }
+      },
       "ParseRequest": {
         "type": "object",
-        "required": ["input"],
+        "required": ["input", "processing_options"],
         "properties": {
           "input": {
-            "description": "Document input. Provide either a direct path/URL or an object with file_id or file.",
-            "oneOf": [
-              { "type": "string", "description": "Path or URL" },
-              {
-                "type": "object",
-                "oneOf": [
-                  { "type": "object", "required": ["file_id"], "properties": { "file_id": { "type": "string" } } },
-                  { "type": "object", "required": ["file"], "properties": { "file": { "type": "string", "description": "Path or URL" } } }
-                ]
-              }
-            ]
+            "description": "Reference to an uploaded file via file_id.",
+            "type": "object",
+            "required": ["file_id"],
+            "properties": { "file_id": { "type": "string" } }
           },
+          "idempotency_key": { "type": "string", "description": "A unique key to make the request idempotent. Reusing the same key returns the original job response instead of creating a new job." },
           "processing_options": {
             "type": "object",
-            "description": "Optional processing flags",
+            "description": "Processing options",
             "additionalProperties": true,
+            "required": ["ocr_mode", "classify_content", "generate_document_title_metadescription", "generate_table_summary", "generate_figure_summary", "table_format", "contextualize_chunks", "content_unique_id", "chunking_strategy", "split_into_documents", "extract_figures", "remove_blocks"],
             "properties": {
-              "ocr_mode": { "type": "string", "enum": ["basic", "layout_aware"], "default": "layout_aware" },
-              "classify_content": { "type": "array", "items": { "type": "string" } },
-              "generate_document_title": { "type": "boolean" },
-              "generate_document_metadescription": { "type": "boolean" },
-              "generate_table_summary": { "type": "boolean" },
-              "generate_figure_summary": { "type": "boolean" },
-              "table_format": { "type": "string", "enum": ["markdown", "html"], "default": "markdown" },
-              "contextualize_chunks": { "type": "boolean" },
-              "content_unique_id": { "type": "boolean" },
-              "chunking_strategy": { "type": "string", "enum": ["page", "title_section", "paragraph"] },
-              "split_into_documents": { "type": "boolean" },
-              "extract_images": { "type": "boolean" },
-              "remove_blocks": { "type": "array", "items": { "type": "string" } }
+                "ocr_mode": { 
+                  "type": "string", 
+                  "description": "",
+                  "enum": ["basic", "layout_aware"], 
+                  "default": "layout_aware"
+                },
+                "classify_content": { 
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "default": [],
+                  "description": "List of classifications to apply (e.g., bank_statement, loan_application, id_document, other). Each classification will be applied to relevant documents detected in the input."
+                },
+                "generate_document_title_metadescription": { 
+                  "type": "boolean",
+                  "description": "Generates a title and metadescription of the document. Useful for front end UI and RAG applications." ,
+                  "default": false
+                },
+                "generate_table_summary": { 
+                  "type": "boolean",
+                  "description": "Generates a detailed summary or caption for tables to improve search and retrieval performance, including for RAG applications." ,
+                  "default": false
+                },
+                "generate_figure_summary": { 
+                  "type": "boolean",
+                  "description": "Generates a detailed summary or caption for each image to improve search and retrieval performance, including for RAG applications.",
+                  "default": false
+                },
+                "table_format": { "type": "string", "enum": ["markdown", "html"], "default": "markdown" },
+                "contextualize_chunks": { 
+                  "description": "Adds missing context to each chunk so that it can stand alone. Significantly improves search retrieval accuracy and RAG applications.",
+                  "type": "boolean",
+                  "default": false
+                },
+                "content_unique_id": { 
+                  "type": "boolean",
+                  "description": "Generates a unique ID for each chunk or document based on its page content. This helps prevent duplicate content from being stored or processed multiple times.",
+                  "default": false
+                },
+                "chunking_strategy": { "type": "string", "enum": ["page", "title_section", "paragraph"] },
+                "split_into_documents": { 
+                  "description": "Splits a single file into multiple document components (e.g., a loan application PDF that contains a bank statement, ID document, etc).",
+                  "type": "boolean",
+                  "default": false
+                },
+                "extract_figures": { 
+                  "description": "Extracts individual figure images detected on pages and returns signed URLs for those cutouts.",
+                  "type": "boolean",
+                  "default": false
+                },
+                "remove_blocks": { 
+                  "type": "array", 
+                  "description": "Optional element blocks to exclude (noise). Possible values: PARAGRAPH, TITLE, HEADING, HEADER, FOOTER, PAGE_NUMBER, FOOTNOTE, TABLE, TABLE_CELL, KEY_VALUE, BARCODE, FORMULA, IMAGE, CAPTION, SECTION.",
+                  "items": { "type": "string", "enum": ["PARAGRAPH", "TITLE", "HEADING", "HEADER", "FOOTER", "PAGE_NUMBER", "FOOTNOTE", "TABLE", "TABLE_CELL", "KEY_VALUE", "BARCODE", "FORMULA", "IMAGE", "CAPTION", "SECTION"]},
+                  "default": []
+                }
             }
-          },
-          "idempotency_key": { "type": "string" }
+          }
         }
       },
       "ParseAccepted": {
@@ -297,14 +419,14 @@
         "required": ["job_id", "status"],
         "properties": {
           "job_id": { "type": "string" },
-          "status": { "type": "string", "enum": ["RUNNING", "QUEUED"] }
+          "status": { "type": "string", "enum": ["RUNNING", "QUEUED", "COMPLETED"] }
         }
       },
       "JobUsage": {
         "type": "object",
         "properties": {
-          "credits": { "type": "integer" },
-          "pages": { "type": "integer" }
+          "credits": { "type": "integer", "description": "Number of credits used in processing" },
+          "pages": { "type": "integer", "description": "Number of pages processed" }
         }
       },
       "JobResult": {
@@ -312,12 +434,81 @@
         "required": ["job_id", "status", "result"],
         "properties": {
           "job_id": { "type": "string" },
-          "status": { "type": "string", "enum": ["SUCCEEDED", "RUNNING", "FAILED"] },
-          "has_more": { "type": "boolean" },
-          "next_cursor": { "type": "string", "nullable": true },
+          "status": { "type": "string", "enum": ["COMPLETED", "RUNNING", "FAILED"] },
+          "has_more": { "type": "boolean", "description": "True if additional results are available. Use next_cursor to fetch the next page." },
+          "next_cursor": { "type": "string", "nullable": true, "description": "Opaque cursor for pagination. Pass as ?cursor= to retrieve the next page; null when no more results." },
           "usage": { "$ref": "#/components/schemas/JobUsage" },
           "error": { "$ref": "#/components/schemas/Error" },
-          "result": { "type": "array", "items": { "type": "object" } }
+          "result": { "type": "array", "items": { "$ref": "#/components/schemas/ParsedDocument" } }
+        }
+      },
+      "ParsedDocument": {
+        "type": "object",
+        "required": ["doc_id", "file_type", "chunks"],
+        "properties": {
+          "doc_id": { "type": "string", "description": "UUID generated for document. If processing_options.content_unique_id is true, this will be deterministic."  },
+          "title": { "type": "string", "description": "LLM Generated document title. Returned when processing_options.generate_document_title_metadescription is true." },
+          "meta_description": { "type": "string", "description": "LLM generated 2 sentence document summary. Generated when processing_options.generate_document_title_metadescription is true." },
+          "classification": { "type": "string", "description": "LLM assigned document classification label (e.g., bank_statement) when processing_options.classify_content is provided." },
+          "file_type": {
+            "type": "string",
+            "description": "Original file type",
+            "enum": ["email", "pdf", "docx", "doc", "xlsx", "xls", "csv", "xml", "jpg", "jpeg", "png", "gif", "bmp", "tiff", "pptx", "ppt"]
+          },
+          "chunks": { "type": "array", "items": { "$ref": "#/components/schemas/Chunk" } },
+          "source": {
+            "type": "object",
+            "properties": { "start_index": { "type": "integer", "description": "Document's starting page index in the original file. Relevant when split_into_documents is true." } }
+          }
+        }
+      },
+      "Chunk": {
+        "type": "object",
+        "required": ["id", "chunk_type", "order", "orig_page_number", "content"],
+        "properties": {
+          "id": { 
+            "type": "string", 
+            "description": "UUID generated for chunk. If processing_options.content_unique_id is true, this will be deterministic." 
+          },
+          "chunk_type": { "type": "string", "enum": ["page", "title_section", "paragraph"] },
+          "order": { "type": "integer" },
+          "orig_page_number": { "type": "integer", "description": "Page number from original document" },
+          "orig_page_image_url": { "type": "string", "description": "Present when include contains 'document_images'. Signed URL of the original page image." },
+          "content": { "type": "string", "description": "All the extracted content for the chunk." },
+          "md_content": { "type": "string", "description": "Markdown formatted content." },
+          "contextualized_content": { "type": "string", "description": "Contextualized version of content. Used for embeddings + RAG" },
+          "blocks": { "type": "array", "description": "Present when include contains 'blocks'. Breakdown of each element found within a page.", "items": { "$ref": "#/components/schemas/Block" } }
+        }
+      },
+      "Block": {
+        "type": "object",
+        "required": ["type", "confidence"],
+        "properties": {
+          "type": { "type": "string", "enum": ["PARAGRAPH", "TITLE", "HEADING", "HEADER", "FOOTER", "PAGE_NUMBER", "FOOTNOTE", "TABLE", "TABLE_CELL", "KEY_VALUE", "BARCODE", "FORMULA", "IMAGE", "CAPTION", "SECTION"] },
+          "text": { "type": "string", "description": "Block textual content" },
+          "summary": { "type": "string", "description": "LLM generated summary of table / figure. Present when generate_table_summary or generate_figure_summary is true." },
+          "image_url": { "type": "string", "description": "Present for IMAGE blocks when processing_options.extract_figures is true." },
+          "bbox": { "$ref": "#/components/schemas/BBox", "description": "Bounding box position of the element. Present when include contains 'layout_bbox'." },
+          "confidence": { "type": "number" },
+          "cells": { "type": "array", "description": "Present for table blocks.", "items": { "$ref": "#/components/schemas/TableCell" } }
+        }
+      },
+      "BBox": {
+        "type": "object",
+        "required": ["top", "left", "width", "height"],
+        "properties": {
+          "top": { "type": "number" },
+          "left": { "type": "number" },
+          "width": { "type": "number" },
+          "height": { "type": "number" }
+        }
+      },
+      "TableCell": {
+        "type": "object",
+        "required": ["text"],
+        "properties": {
+          "text": { "type": "string" },
+          "bbox": { "$ref": "#/components/schemas/BBox" }
         }
       },
       "UploadPresignRequest": {
@@ -327,14 +518,15 @@
           "filename": { "type": "string" },
           "content_type": { "type": "string" },
           "content_length": { "type": "integer", "format": "int64" },
-          "checksum": { "type": "string", "description": "Base64-encoded SHA256 checksum (optional)" }
+          "checksum": { "type": "string", "description": "Base64-encoded SHA256 checksum (optional)" },
+          "idempotency_key": { "type": "string", "description": "A unique key to make the request idempotent. Reusing the same key returns the original job response instead of creating a new job." }
         }
       },
       "UploadPresignResponse": {
         "type": "object",
         "required": ["file_id", "url"],
         "properties": {
-          "file_id": { "type": "string" },
+          "file_id": { "type": "string", "description": "Identifier to reference the uploaded file in subsequent API calls." },
           "url": { "type": "string" },
           "method": { "type": "string", "enum": ["PUT", "POST"], "default": "POST" },
           "fields": { "type": "object", "additionalProperties": { "type": "string" } },
@@ -353,13 +545,11 @@
         "type": "object",
         "required": ["parsed_document", "extraction_schema"],
         "properties": {
-          "parsed_document": { "type": "object" },
-          "extraction_schema": { "type": "object", "description": "Target schema (e.g., JSON Schema)" },
-          "strict": { "type": "boolean" },
-          "model": { "type": "string", "description": "LLM model identifier" },
-          "openai_api_key": { "type": "string" },
-          "additional_context": { "type": "string" },
-          "idempotency_key": { "type": "string" }
+          "parsed_document": { "$ref": "#/components/schemas/ParsedDocument", "description": "Document object returned by the parsing job endpoint. Must be taken from Ingestor's parsing response without modification." },
+          "extraction_schema": { "type": "object", "description": "Target schema (e.g., JSON Schema) to validate and coerce results into." },
+          "strict": { "type": "boolean", "description": "If true, validation must fully satisfy the schema; the job fails on mismatch." },
+          "additional_context": { "type": "string", "description": "Optional domain-specific instructions to help the model parse (e.g., vertical or business rules)." },
+          "idempotency_key": { "type": "string", "description": "A unique key to make the request idempotent. Reusing the same key returns the original job response instead of creating a new job." }
         }
       },
       "ExtractAccepted": {
@@ -375,10 +565,9 @@
         "required": ["job_id", "status"],
         "properties": {
           "job_id": { "type": "string" },
-          "status": { "type": "string", "enum": ["SUCCEEDED", "RUNNING", "FAILED"] },
-          "doc_id": { "type": "string" },
-          "extracted": { "type": "object" },
-          "warnings": { "type": "array", "items": { "type": "string" } },
+          "status": { "type": "string", "enum": ["COMPLETED", "RUNNING", "FAILED"] },
+          "doc_id": { "type": "string", "description": "The original document id passed in via parsed_document.doc_id." },
+          "extracted": { "type": "object", "description": "Extraction output matching the provided schema. Shape depends on your extraction_schema." },
           "usage": { "$ref": "#/components/schemas/JobUsage" },
           "error": { "$ref": "#/components/schemas/Error" }
         }

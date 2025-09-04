@@ -62,13 +62,13 @@ The example below shows how to parse a loan application scan that may include mu
           "classify_content": ["bank_statement", "loan_application", "id_document", "other"],  # Choose optional classifications to assign to docs
           "generate_document_title_metadescription": True, # Generates a title and meta description for semantic search, RAG, and frontend UI.
           "split_into_documents": True, # Splits a single document into its individual components (e.g., bank statement, ID document, etc.)
-          "chunking_strategy": "page", # Or section / paragraph
+          "chunking_strategy": "page", # Or title_section / paragraph
           "contextualize_chunks": True, # Agentic process that adds missing context to each chunk so it can stand alone.
           "generate_table_summary": True, # Generates a summary of any tables found. Helps with search retrieval accuracy.
           "generate_figure_summary": True, # Generates a summary of any images found. Helps with search retrieval accuracy.
           "content_unique_id": True, # Helps prevent duplicate content being stored in your database (it happens). 
-          "extract_images": True, # To display on front end UI, etc
-          "remove_blocks": ["footer", "header"] # Because some elements are almost always noise that can distract an LLM
+          "extract_figures": True, # Extracts images (photos, logos, etc.) embedded in documents
+          "remove_blocks": ["FOOTER", "HEADER"] # Because some elements are almost always noise that can distract an LLM
       }
   )
 
@@ -81,17 +81,21 @@ The example below shows how to parse a loan application scan that may include mu
 
   const response = await client.content.parse({
     input: "loan_application_john_smith.pdf",
-    processing_options: {
-      ocr_mode: "layout_aware",
-      classify_content: ["bank_statement", "loan_application", "id_document", "other"],
-      generate_document_title_metadescription: true,
-      split_into_documents: true,
-      chunking_strategy: "page",
-      contextualize_chunks: true,
-      generate_table_summary: true,
-      generate_figure_summary: true
+    processingOptions: {
+      ocrMode: "layout_aware", // Extracts tables, paragraphs, forms, signatures, etc.
+      classifyContent: ["bank_statement", "loan_application", "id_document", "other"], // Choose optional classifications to assign to docs
+      generateDocumentTitleMetadescription: true, // Generates a title and meta description for semantic search, RAG, and frontend UI.
+      splitIntoDocuments: true, // Splits a single document into its individual components (e.g., bank statement, ID document, etc.)
+      chunkingStrategy: "page", // Or title_section / paragraph
+      contextualizeChunks: true, // Agentic process that adds missing context to each chunk so it can stand alone.
+      generateTableSummary: true, // Generates a summary of any tables found. Helps with search retrieval accuracy.
+      generateFigureSummary: true, // Generates a summary of any images found. Helps with search retrieval accuracy.
+      contentUniqueId: true, // Helps prevent duplicate content being stored in your database (it happens). 
+      extractFigures: true, // Extracts images (photos, logos, etc.) embedded in documents
+      removeBlocks: ["FOOTER", "HEADER"] // Because some elements are almost always noise that can distract an LLM
     }
   });
+
 
   const job_id = response.job_id;
   ```
@@ -105,12 +109,12 @@ Because jobs run through a multi-step pipeline, they may take several minutes to
 
 <CodeGroup>
   ```bash Python
-  documents = client.jobs.get_document_response(job_id, include=["layout_bbox", "blocks", "page_images"])
+  documents = client.jobs.get_document_response(job_id, include=["layout_bbox", "blocks", "document_images"])
   print(documents)
   ```
 
   ```bash Node
-  const documents = await client.jobs.get_document_response(job_id, { include: ["layout_bbox", "blocks"] });
+  const documents = await client.jobs.get_document_response(job_id, { include: ["layout_bbox", "blocks", "document_images"] });
   console.log(documents);
   ```
 </CodeGroup>
@@ -118,7 +122,7 @@ Because jobs run through a multi-step pipeline, they may take several minutes to
 ```jsonc response
 {
     "job_id": "b7e8c2a1-4f3d-4e2a-9c1b-2d5f6a7e8c2b",
-    "status": "completed",
+    "status": "COMPLETED",
     "usage": { "credits": 400, "pages": 200 },
     "has_more": false,
     "result": [
@@ -134,7 +138,8 @@ Because jobs run through a multi-step pipeline, they may take several minutes to
                     "id": "b7e8c2a1-4f3d-4e2a-9c1b-2d5f6a7e8c2b",
                     "chunk_type": "page",
                     "order": 1,
-                    "orig_page": 1,
+                    "orig_page_number": 1,
+                    "orig_page_image_url": "https://...signed", // present when include contains "document_images"
                     "content": "Statement of account...",
                     "md_content": "# Statement of account...",
                     "contextualized_content": "This chunk is from a JPMorgan Chase bank statement for John Smith... # Statement of account...",

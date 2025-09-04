@@ -39,13 +39,13 @@ To save other developers the pain we went through, we’ve made these pipelines 
           "classify_content": ["bank_statement", "loan_application", "id_document", "other"],  # Choose optional classifications to assign to docs
           "generate_document_title_metadescription": True, # Generates a title and meta description for semantic search, RAG, and frontend UI.
           "split_into_documents": True, # Splits a single document into its individual components (e.g., bank statement, ID document, etc.)
-          "chunking_strategy": "page", # Or section / paragraph
+          "chunking_strategy": "page", # Or title_section / paragraph
           "contextualize_chunks": True, # Agentic process that adds missing context to each chunk so it can stand alone.
           "generate_table_summary": True, # Generates a summary of any tables found. Helps with search retrieval accuracy.
           "generate_figure_summary": True, # Generates a summary of any images found. Helps with search retrieval accuracy.
           "content_unique_id": True, # Helps prevent duplicate content being stored in your database (it happens). 
-          "extract_images": True, # To display on front end UI, etc
-          "remove_blocks": ["footer", "header"] # Some elements are almost always noise that can distract an LLM
+          "extract_figures": True, # Extracts images (photos, logos, etc.) embedded in documents
+          "remove_blocks": ["FOOTER", "HEADER"] # Some elements are almost always noise that can distract an LLM
       }
   )
   ```
@@ -66,14 +66,14 @@ Use `contextualized_content` for embeddings and chunks passed to an LLM. Use `ti
 If you need granular control, use the returned block elements to assemble your own content. Each block includes an element type (e.g., footer, paragraph, table) along with bounding boxes, confidence scores, and optional summaries.  
 
   ```bash Python
-  documents = client.jobs.get_document_response(job_id, include=["layout_bbox", "blocks", "page_images"])
+  documents = client.jobs.get_document_response(job_id, include=["layout_bbox", "blocks", "document_images"])
   print(documents)
   ```
 
 ```jsonc response
 {
     "job_id": "b7e8c2a1-4f3d-4e2a-9c1b-2d5f6a7e8c2b",
-    "status": "completed",
+    "status": "COMPLETED",
     "usage": { "credits": 400, "pages": 200 },
     "has_more": false,
     "result": [
@@ -89,7 +89,8 @@ If you need granular control, use the returned block elements to assemble your o
                     "id": "b7e8c2a1-4f3d-4e2a-9c1b-2d5f6a7e8c2b",
                     "chunk_type": "page",
                     "order": 1,
-                    "orig_page": 1,
+                    "orig_page_number": 1,
+                    "orig_page_image_url": "https://...signed", 
                     "content": "Statement of account...",
                     "md_content": "# Statement of account...",
                     "contextualized_content": "This chunk is from a JPMorgan Chase bank statement for John Smith... # Statement of account...",

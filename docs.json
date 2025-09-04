@@ -23,6 +23,9 @@
           {
             "group": "Ingestion",
             "pages": [
+              "ingestion/parsing",
+              "ingestion/extraction",
+              "ingestion/agentic_chunking",
               "ingestion/file_formats",
               "ingestion/languages"
             ]
@@ -33,29 +36,12 @@
               "essentials/settings",
               "essentials/navigation"
             ]
-          },
-          {
-            "group": "Writing content",
-            "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
-            ]
           }
         ]
       },
       {
         "tab": "API reference",
-        "openapi": "api-reference/openapi.json",
-        "groups": [
-          {
-            "group": "API documentation",
-            "pages": [
-              "api-reference/introduction"
-            ]
-          }
-        ]
+        "openapi": "api-reference/openapi.json"
       }
     ],
     "global": {

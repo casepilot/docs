@@ -31,10 +31,16 @@
             ]
           },
           {
-            "group": "Configuration",
+            "group": "Configurations",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "configurations/ocr"
+            ]
+          },
+          {
+            "group": "Security & privacy",
+            "pages": [
+              "security/data_processing_addendum",
+              "security/zero_data_retention"
             ]
           }
         ]
